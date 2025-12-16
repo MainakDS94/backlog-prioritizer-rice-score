@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Backlog Prioritizer</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="header">
+      <div class="title">
+        <h1>Backlog Prioritizer</h1>
+        <p class="subtitle">
+          Add GitLab issue URLs, score using RICE (1–3 scale), and auto-sort or manually order.
+          Pairing is local to this browser profile on this PC.
+        </p>
+      </div>
+      <div class="headerActions">
+        <button class="btn secondary" id="lockBtn" type="button">Lock</button>
+        <button class="btn danger" id="resetPairBtn" type="button">Reset pairing</button>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="toolbar">
+        <div class="field">
+          <label for="issueUrl">GitLab issue URL</label>
+          <input id="issueUrl" type="text" placeholder="https://issues.markify.com/root/products/-/issues/1579" />
+        </div>
+
+        <button class="btn" id="addBtn" type="button">+ Add URL</button>
+
+        <div class="toggles">
+          <div class="toggle">
+            <input id="autoSort" type="checkbox" />
+            <span>Auto-sort by RICE</span>
+          </div>
+          <button class="btn secondary" id="refreshBtn" type="button">Refresh titles</button>
+          <button class="btn danger" id="clearBtn" type="button">Clear list</button>
+        </div>
+      </div>
+
+      <div class="statusbar">
+        <div id="statusLeft">Locked. Pair/unlock to use.</div>
+        <div class="right">
+          <div class="pill" id="pairPill">Unpaired</div>
+          <div class="pill" id="countPill">0 items</div>
+          <div class="pill" id="modePill">Mode: Manual</div>
+        </div>
+      </div>
+
+      <div class="grid head">
+        <div class="cell order">#</div>
+        <div class="cell">Issue</div>
+        <div class="cell">Reach</div>
+        <div class="cell">Impact</div>
+        <div class="cell">Confidence</div>
+        <div class="cell">Effort</div>
+        <div class="cell riceHead">RICE</div>
+        <div class="cell moveHead">Move</div>
+      </div>
+
+      <div id="rows"></div>
+
+      <footer class="footer">
+        <div class="hint">
+          RICE = (Reach × Impact × Confidence) ÷ Effort. Values are 1–3.
+        </div>
+        <div class="hint">
+          If title fetching fails on GitHub Pages, it is typically a CORS restriction on your GitLab instance.
+        </div>
+      </footer>
+    </section>
+  </div>
+
+  <!-- AUTH MODAL -->
+  <div class="modalBackdrop" id="authBackdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <div class="modalHeader">
+        <div>
+          <h2 id="authTitle">Local pairing required</h2>
+          <p class="modalSub" id="authSub">
+            Pair this browser on this PC with a GitLab token. Stored encrypted locally.
+          </p>
+        </div>
+        <button class="iconbtn" id="closeAuthBtn" type="button" title="Close">×</button>
+      </div>
+
+      <div class="modalBody">
+        <div class="tabs">
+          <button class="tab active" id="tabUnlock" type="button">Unlock</button>
+          <button class="tab" id="tabPair" type="button">Pair new token</button>
+        </div>
+
+        <!-- Unlock -->
+        <div class="pane" id="paneUnlock">
+          <div class="field">
+            <label for="unlockDeviceLabel">Device label</label>
+            <input id="unlockDeviceLabel" type="text" placeholder="(auto-filled if paired)" disabled />
+          </div>
+
+          <div class="field">
+            <label for="unlockPass">Pairing passphrase</label>
+            <input id="unlockPass" type="password" placeholder="Your local pairing passphrase" />
+          </div>
+
+          <div class="rowInline">
+            <label class="checkbox">
+              <input id="keepUnlocked" type="checkbox" />
+              <span>Keep unlocked in this tab (until refresh)</span>
+            </label>
+          </div>
+
+          <div class="modalActions">
+            <button class="btn" id="unlockBtn" type="button">Unlock</button>
+          </div>
+
+          <div class="note" id="unlockNote"></div>
+        </div>
+
+        <!-- Pair -->
+        <div class="pane hidden" id="panePair">
+          <div class="field">
+            <label for="pairDeviceLabel">Device label (PC-specific identifier)</label>
+            <input id="pairDeviceLabel" type="text" placeholder="e.g., MAINAK-LAPTOP / MAINAK-DESKTOP" />
+          </div>
+
+          <div class="field">
+            <label for="pairToken">GitLab PAT</label>
+            <input id="pairToken" type="password" placeholder="Paste token from Bitwarden" />
+          </div>
+
+          <div class="field">
+            <label for="pairPass">Pairing passphrase</label>
+            <input id="pairPass" type="password" placeholder="Choose a strong passphrase; store in Bitwarden" />
+          </div>
+
+          <div class="modalActions">
+            <button class="btn" id="pairBtn" type="button">Create token–PC pair</button>
+          </div>
+
+          <div class="note" id="pairNote"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
