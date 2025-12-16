@@ -531,6 +531,86 @@ function doResetPairing(){
 }
 
 // ---------------------------
-// Event Wiring
+// Event Wiring + Startup (COPY-PASTE)
 // ---------------------------
-elAdd.addEventListener("click", addUrl);
+(function wireAndInit(){
+  // Defensive: if any element is missing, fail loudly in Console.
+  function must(el, name){
+    if(!el) throw new Error(`[BP] Missing DOM element: ${name}`);
+    return el;
+  }
+
+  // Ensure critical modal elements exist
+  must(pairBtn, "pairBtn");
+  must(pairNote, "pairNote");
+  must(pairDeviceLabel, "pairDeviceLabel");
+  must(pairToken, "pairToken");
+  must(pairPass, "pairPass");
+  must(unlockBtn, "unlockBtn");
+  must(unlockNote, "unlockNote");
+  must(authBackdrop, "authBackdrop");
+
+  // Main actions
+  elAdd.addEventListener("click", addUrl);
+  elUrl.addEventListener("keydown", (e) => { if(e.key === "Enter") addUrl(); });
+
+  elRows.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-action]");
+    if(!btn) return;
+    if(elAutoSort.checked) return;
+    moveItem(btn.getAttribute("data-id"), btn.getAttribute("data-action"));
+  });
+
+  elRows.addEventListener("change", (e) => {
+    const sel = e.target.closest("select[data-field]");
+    if(!sel) return;
+    updateField(sel.getAttribute("data-id"), sel.getAttribute("data-field"), sel.value);
+  });
+
+  elAutoSort.addEventListener("change", () => {
+    setStatus(elAutoSort.checked ? "Auto-sort enabled (manual arrows disabled)." : "Manual ordering enabled.");
+    render();
+  });
+
+  elClear.addEventListener("click", clearAll);
+  elRefresh.addEventListener("click", refreshAllTitles);
+  elResetPair.addEventListener("click", doResetPairing);
+  elLockBtn.addEventListener("click", doLock);
+
+  // Modal actions
+  closeAuthBtn.addEventListener("click", closeAuth);
+  authBackdrop.addEventListener("click", (e) => { if(e.target === authBackdrop) closeAuth(); });
+
+  tabUnlock.addEventListener("click", () => setTab("unlock"));
+  tabPair.addEventListener("click", () => setTab("pair"));
+
+  // IMPORTANT: attach the missing handlers
+  pairBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    pairNote.textContent = "Pairing in progress…";
+    doPair();
+  });
+
+  unlockBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    unlockNote.textContent = "Unlocking…";
+    doUnlock();
+  });
+
+  unlockPass.addEventListener("keydown", (e) => { if(e.key === "Enter") doUnlock(); });
+  pairPass.addEventListener("keydown", (e) => { if(e.key === "Enter") doPair(); });
+
+  // Startup
+  render();
+
+  const pairing = getPairing();
+  if(!pairing){
+    setStatus("Unpaired. Pair this PC/browser profile to enable GitLab title fetching.");
+    openAuth("pair");
+  } else {
+    setStatus(`Paired as "${pairing.deviceLabel}". Unlock to use.`);
+    openAuth("unlock");
+  }
+})();
