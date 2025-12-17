@@ -301,7 +301,7 @@ function render(){
 
       <div class="cell rice">
         ${riceScore(it).toFixed(2)}
-        <small>${it.reach}×${it.impact}×${it.confidence}÷${it.effort}</small>
+        
       </div>
 
       <div class="cell actions">
@@ -606,3 +606,4 @@ function cleanupOnExit(){
   
 }
 window.addEventListener("pagehide", cleanupOnExit);
+
