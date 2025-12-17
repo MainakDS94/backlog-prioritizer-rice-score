@@ -19,7 +19,7 @@ const elCountPill = document.getElementById("countPill");
 const elModePill = document.getElementById("modePill");
 const elPairPill = document.getElementById("pairPill");
 const elClear = document.getElementById("clearBtn");
-const elRefresh = document.getElementById("refreshBtn");
+
 const elResetPair = document.getElementById("resetPairBtn");
 const elLockBtn = document.getElementById("lockBtn");
 
@@ -46,7 +46,7 @@ const pairNote = document.getElementById("pairNote");
 // ---------------------------
 // Utilities
 // ---------------------------
-function setStatus(msg){ elStatusLeft.textContent = msg; }
+function setStatus(_){ /* intentionally silent */ }
 
 function uid(){
   return Math.random().toString(16).slice(2) + Date.now().toString(16);
@@ -291,8 +291,8 @@ function render(){
       <div class="cell issue">
         <div class="top">
           <div class="name" title="${escapeHtml(it.title || it.url)}">${escapeHtml(it.title || "Untitled")}</div>
-          ${statusBadge(it.fetchStatus)}
         </div>
+
         <div class="meta">
           <span class="badge">${escapeHtml(it.host.replace(/^https?:\/\//,""))}</span>
           <span class="badge">${escapeHtml(formatProjectSlug(it.projectPath))}</span>
@@ -312,9 +312,11 @@ function render(){
       </div>
 
       <div class="cell actions">
-        <button class="iconbtn" title="Move up" data-action="up" data-id="${it.id}" ${(!canMove || idx===0) ? "disabled" : ""}>↑</button>
-        <button class="iconbtn" title="Move down" data-action="down" data-id="${it.id}" ${(!canMove || idx===items.length-1) ? "disabled" : ""}>↓</button>
+          <button class="iconbtn trash" title="Remove" data-action="delete" data-id="${it.id}">🗑</button>
+          <button class="iconbtn" title="Move up" data-action="up" data-id="${it.id}" ${(!canMove || idx===0) ? "disabled" : ""}>↑</button>
+          <button class="iconbtn" title="Move down" data-action="down" data-id="${it.id}" ${(!canMove || idx===items.length-1) ? "disabled" : ""}>↓</button>
       </div>
+
     `;
     elRows.appendChild(row);
   });
@@ -414,12 +416,11 @@ async function addUrl(){
     const title = await gitlabFetchIssueTitle(parsed, sessionToken);
     it.title = title;
     it.fetchStatus = "ok";
-    setStatus(`Fetched: ${title}`);
-  } catch(e){
+  } catch(_e){
     it.title = "Untitled";
     it.fetchStatus = "err";
-    setStatus(String(e.message || e));
   }
+
 
   elUrl.value = "";
   render();
@@ -432,6 +433,13 @@ function moveItem(id, direction){
   if(newIdx < 0 || newIdx >= items.length) return;
   const [spliced] = items.splice(idx, 1);
   items.splice(newIdx, 0, spliced);
+  render();
+}
+
+function removeItem(id){
+  const idx = items.findIndex(x => x.id === id);
+  if(idx < 0) return;
+  items.splice(idx, 1);
   render();
 }
 
@@ -575,9 +583,19 @@ function doResetPairing(){
   elRows.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-action]");
     if(!btn) return;
+
+    const id = btn.getAttribute("data-id");
+    const action = btn.getAttribute("data-action");
+
+    if(action === "delete"){
+      removeItem(id);
+      return;
+    }
+
     if(elAutoSort.checked) return;
-    moveItem(btn.getAttribute("data-id"), btn.getAttribute("data-action"));
+      moveItem(id, action);
   });
+
 
   elRows.addEventListener("change", (e) => {
     const sel = e.target.closest("select[data-field]");
@@ -591,7 +609,7 @@ function doResetPairing(){
   });
 
   elClear.addEventListener("click", clearAll);
-  elRefresh.addEventListener("click", refreshAllTitles);
+  
   elResetPair.addEventListener("click", doResetPairing);
   elLockBtn.addEventListener("click", doLock);
 
@@ -606,16 +624,18 @@ function doResetPairing(){
   pairBtn.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    pairNote.textContent = "Pairing in progress…";
+    pairNote.textContent = "";
     doPair();
   });
+
 
   unlockBtn.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    unlockNote.textContent = "Unlocking…";
+    unlockNote.textContent = "";
     doUnlock();
   });
+
 
   unlockPass.addEventListener("keydown", (e) => { if(e.key === "Enter") doUnlock(); });
   pairPass.addEventListener("keydown", (e) => { if(e.key === "Enter") doPair(); });
@@ -632,4 +652,5 @@ function doResetPairing(){
     openAuth("unlock");
   }
 })();
+
 
