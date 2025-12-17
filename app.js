@@ -14,7 +14,6 @@ const elUrl = document.getElementById("issueUrl");
 const elAdd = document.getElementById("addBtn");
 const elRows = document.getElementById("rows");
 const elAutoSort = document.getElementById("autoSort");
-const elStatusLeft = document.getElementById("statusLeft");
 const elCountPill = document.getElementById("countPill");
 const elModePill = document.getElementById("modePill");
 const elPairPill = document.getElementById("pairPill");
@@ -33,7 +32,7 @@ const panePair = document.getElementById("panePair");
 
 const unlockDeviceLabel = document.getElementById("unlockDeviceLabel");
 const unlockPass = document.getElementById("unlockPass");
-const keepUnlocked = document.getElementById("keepUnlocked");
+const keepUnlocked = document.getElementById("keepUnlocked"); // kept for compatibility (unused)
 const unlockBtn = document.getElementById("unlockBtn");
 const unlockNote = document.getElementById("unlockNote");
 
@@ -101,7 +100,7 @@ function escapeHtml(s){
     .replaceAll("&","&amp;")
     .replaceAll("<","&lt;")
     .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
+    .replaceAll('"',"quot;")
     .replaceAll("'","&#039;");
 }
 function escapeAttr(s){ return escapeHtml(s).replaceAll("`","&#096;"); }
@@ -214,7 +213,6 @@ async function gitlabFetchIssueTitle({ host, projectPath, kind, iid }, token){
 
   const headers = {
     "PRIVATE-TOKEN": token,
-    // Improves compatibility on some instances:
     "Authorization": `Bearer ${token}`
   };
 
@@ -227,6 +225,7 @@ async function gitlabFetchIssueTitle({ host, projectPath, kind, iid }, token){
   }
 
   if(!res.ok){
+    // silent in UI; keep for debugging in console
     const t = await res.text().catch(() => "");
     throw new Error(`GitLab API ${res.status}: ${t || res.statusText}`);
   }
@@ -251,12 +250,6 @@ function applyOrdering(){
 
 function updateCounts(){
   elCountPill.textContent = `${items.length} item${items.length === 1 ? "" : "s"}`;
-}
-
-function statusBadge(status){
-  if(status === "ok") return `<span class="badge ok">Fetched</span>`;
-  if(status === "err") return `<span class="badge err">Fetch failed</span>`;
-  return `<span class="badge">Pending</span>`;
 }
 
 function scoreSelect(field, value, id){
@@ -312,11 +305,10 @@ function render(){
       </div>
 
       <div class="cell actions">
-          <button class="iconbtn trash" title="Remove" data-action="delete" data-id="${it.id}">🗑</button>
-          <button class="iconbtn" title="Move up" data-action="up" data-id="${it.id}" ${(!canMove || idx===0) ? "disabled" : ""}>↑</button>
-          <button class="iconbtn" title="Move down" data-action="down" data-id="${it.id}" ${(!canMove || idx===items.length-1) ? "disabled" : ""}>↓</button>
+        <button class="iconbtn trash" title="Remove" data-action="delete" data-id="${it.id}">🗑</button>
+        <button class="iconbtn" title="Move up" data-action="up" data-id="${it.id}" ${(!canMove || idx===0) ? "disabled" : ""}>↑</button>
+        <button class="iconbtn" title="Move down" data-action="down" data-id="${it.id}" ${(!canMove || idx===items.length-1) ? "disabled" : ""}>↓</button>
       </div>
-
     `;
     elRows.appendChild(row);
   });
@@ -369,11 +361,9 @@ function requireUnlocked(){
   if(sessionToken) return true;
   const pairing = getPairing();
   if(!pairing){
-    setStatus("Unpaired. Please pair this PC/browser profile first.");
     openAuth("pair");
     return false;
   }
-  setStatus("Locked. Please unlock to use GitLab fetching.");
   openAuth("unlock");
   return false;
 }
@@ -385,14 +375,13 @@ async function addUrl(){
   if(!requireUnlocked()) return;
 
   const url = elUrl.value.trim();
-  if(!url){ setStatus("Please paste a GitLab issue URL."); return; }
+  if(!url) return;
 
   let parsed;
   try { parsed = parseGitLabIssueUrl(url); }
-  catch(e){ setStatus(e.message); return; }
+  catch(_e){ return; }
 
   if(items.some(x => x.url === url)){
-    setStatus("That URL is already in your list.");
     elUrl.value = "";
     return;
   }
@@ -420,7 +409,6 @@ async function addUrl(){
     it.title = "Untitled";
     it.fetchStatus = "err";
   }
-
 
   elUrl.value = "";
   render();
@@ -450,35 +438,11 @@ function updateField(id, field, value){
   render();
 }
 
-async function refreshAllTitles(){
-  if(!requireUnlocked()) return;
-  if(items.length === 0){ setStatus("No items to refresh."); return; }
-
-  setStatus("Refreshing titles…");
-  for(const it of items){
-    it.fetchStatus = "pending";
-    render();
-    try{
-      const title = await gitlabFetchIssueTitle(
-        { host: it.host, projectPath: it.projectPath, iid: it.iid },
-        sessionToken
-      );
-      it.title = title;
-      it.fetchStatus = "ok";
-    } catch {
-      it.fetchStatus = "err";
-    }
-  }
-  setStatus("Refresh completed.");
-  render();
-}
-
 function clearAll(){
   if(!confirm("Clear all items? This cannot be undone.")) return;
   items = [];
   saveItems();
   render();
-  setStatus("Cleared.");
 }
 
 // ---------------------------
@@ -497,15 +461,12 @@ async function doPair(){
     const encObj = await encryptToken(pass, token);
     setPairing({ deviceLabel, ...encObj });
 
-    // Immediately unlock into session (optional)
     sessionToken = token;
 
-    // Clear sensitive inputs
     pairToken.value = "";
     pairPass.value = "";
 
-    setStatus(`Paired & unlocked on this PC as "${deviceLabel}".`);
-    pairNote.textContent = "Paired successfully. This pairing exists only on this browser profile.";
+    pairNote.textContent = "";
     render();
     closeAuth();
   } catch (e){
@@ -516,7 +477,7 @@ async function doPair(){
 async function doUnlock(){
   const pairing = getPairing();
   if(!pairing){
-    unlockNote.textContent = "This PC/browser profile is not paired yet.";
+    unlockNote.textContent = "This browser is not paired yet.";
     setTab("pair");
     return;
   }
@@ -528,22 +489,19 @@ async function doUnlock(){
     const token = await decryptToken(pass, pairing);
     sessionToken = token;
 
-    // Clear pass field
     unlockPass.value = "";
 
-    setStatus(`Unlocked (paired device: "${pairing.deviceLabel}").`);
-    unlockNote.textContent = "Unlocked. Token is kept only in memory for this tab.";
+    unlockNote.textContent = "";
     render();
     closeAuth();
   } catch {
     sessionToken = null;
-    unlockNote.textContent = "Invalid passphrase (or pairing data was reset).";
+    unlockNote.textContent = "Invalid passphrase.";
   }
 }
 
 function doLock(){
   sessionToken = null;
-  setStatus("Locked. Please unlock to fetch titles.");
   render();
   openAuth("unlock");
 }
@@ -551,7 +509,6 @@ function doLock(){
 function doResetPairing(){
   if(!confirm("Reset pairing? This will forget the stored token on this PC/browser profile.")) return;
   clearPairing();
-  setStatus("Pairing reset. You must pair again to fetch titles.");
   render();
   openAuth("pair");
 }
@@ -560,13 +517,11 @@ function doResetPairing(){
 // Event Wiring + Startup (COPY-PASTE)
 // ---------------------------
 (function wireAndInit(){
-  // Defensive: if any element is missing, fail loudly in Console.
   function must(el, name){
     if(!el) throw new Error(`[BP] Missing DOM element: ${name}`);
     return el;
   }
 
-  // Ensure critical modal elements exist
   must(pairBtn, "pairBtn");
   must(pairNote, "pairNote");
   must(pairDeviceLabel, "pairDeviceLabel");
@@ -593,9 +548,8 @@ function doResetPairing(){
     }
 
     if(elAutoSort.checked) return;
-      moveItem(id, action);
+    moveItem(id, action);
   });
-
 
   elRows.addEventListener("change", (e) => {
     const sel = e.target.closest("select[data-field]");
@@ -603,13 +557,9 @@ function doResetPairing(){
     updateField(sel.getAttribute("data-id"), sel.getAttribute("data-field"), sel.value);
   });
 
-  elAutoSort.addEventListener("change", () => {
-    setStatus(elAutoSort.checked ? "Auto-sort enabled (manual arrows disabled)." : "Manual ordering enabled.");
-    render();
-  });
+  elAutoSort.addEventListener("change", () => render());
 
   elClear.addEventListener("click", clearAll);
-  
   elResetPair.addEventListener("click", doResetPairing);
   elLockBtn.addEventListener("click", doLock);
 
@@ -620,7 +570,6 @@ function doResetPairing(){
   tabUnlock.addEventListener("click", () => setTab("unlock"));
   tabPair.addEventListener("click", () => setTab("pair"));
 
-  // IMPORTANT: attach the missing handlers
   pairBtn.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -628,14 +577,12 @@ function doResetPairing(){
     doPair();
   });
 
-
   unlockBtn.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
     unlockNote.textContent = "";
     doUnlock();
   });
-
 
   unlockPass.addEventListener("keydown", (e) => { if(e.key === "Enter") doUnlock(); });
   pairPass.addEventListener("keydown", (e) => { if(e.key === "Enter") doPair(); });
@@ -645,12 +592,17 @@ function doResetPairing(){
 
   const pairing = getPairing();
   if(!pairing){
-    setStatus("Unpaired. Pair this PC/browser profile to enable GitLab title fetching.");
     openAuth("pair");
   } else {
-    setStatus(`Paired as "${pairing.deviceLabel}". Unlock to use.`);
     openAuth("unlock");
   }
 })();
 
-
+// ---------------------------
+// Cleanup on tab close / refresh (clears items + session token; keeps pairing)
+// ---------------------------
+function cleanupOnExit(){
+  sessionToken = null;
+  
+}
+window.addEventListener("pagehide", cleanupOnExit);
