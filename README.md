@@ -50,6 +50,8 @@ https://issues.example.com/group/project/-/work_items/1566
 
 Both formats are accepted automatically.
 
+---
+
 ## 📊 RICE Scoring
 
 RICE is calculated as:
@@ -59,6 +61,8 @@ RICE is calculated as:
 - Each value ranges from 1 to 3
 - Final score is recalculated instantly
 - Auto-sort ranks highest RICE first
+
+---
 
 ## 🧠 Intended Use
 
@@ -74,6 +78,8 @@ RICE is calculated as:
 
 This tool is intentionally **single-user and local**.
 
+---
+
 ## 🚀 How to Use
 
 1. Open the app (locally or via GitHub Pages)
@@ -84,6 +90,8 @@ This tool is intentionally **single-user and local**.
 6. Sort automatically by RICE or reorder manually
 7. Remove items when done
 
+---
+
 ## 🛠 Tech Stack
 
 - Vanilla HTML / CSS / JavaScript
@@ -92,12 +100,16 @@ This tool is intentionally **single-user and local**.
 - No frameworks
 - No dependencies
 
+---
+
 ## ⚠️ Notes & Limitations
 
 - CORS rules depend on your GitLab instance  
   (most self-hosted instances work fine)
 - The GitLab token must have permission to read the project
 - Data is browser-profile specific
+
+---
 
 ## 🧩 Why This Exists
 
@@ -115,6 +127,8 @@ This tool is:
 - Secure
 - Built for real Product Owner workflows
 
+---
+
 ## 📄 License
 
 This project is licensed under the  
@@ -122,3 +136,4 @@ This project is licensed under the
 
 Commercial use, resale, or offering this tool as a paid service is **not permitted**.
 
+---
