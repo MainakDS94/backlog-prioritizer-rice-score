@@ -1,3 +1,7 @@
+> ⚠️ Non-commercial license  
+> This project is licensed under CC BY-NC 4.0. Commercial use is not permitted.
+
+
 # Backlog Prioritizer (RICE)
 
 A lightweight, **local-only** web tool to prioritize GitLab issues and work items using the **RICE framework**.
@@ -113,4 +117,8 @@ This tool is:
 
 ## 📄 License
 
-MIT — use, modify, fork freely.
+This project is licensed under the  
+**Creative Commons Attribution–NonCommercial 4.0 International (CC BY-NC 4.0)**.
+
+Commercial use, resale, or offering this tool as a paid service is **not permitted**.
+
