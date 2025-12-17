@@ -192,29 +192,47 @@ function parseGitLabIssueUrl(urlStr){
 
   const host = u.origin;
   const path = u.pathname.replace(/\/+$/, "");
-  const m = path.match(/^(\/.+?)\/-\/issues\/(\d+)$/);
-  if(!m) throw new Error("URL must look like: https://host/<group>/<project>/-/issues/<iid>");
+
+  // Accept both:
+  // .../-/issues/<iid>
+  // .../-/work_items/<iid>
+  const m = path.match(/^(\/.+?)\/-\/(issues|work_items)\/(\d+)$/);
+  if(!m) throw new Error("URL must look like: https://host/<group>/<project>/-/(issues|work_items)/<iid>");
 
   const projectPath = m[1].replace(/^\//, "");
-  const iid = m[2];
-  return { host, projectPath, iid };
+  const kind = m[2];   // "issues" or "work_items"
+  const iid = m[3];
+
+  return { host, projectPath, kind, iid };
 }
 
-async function gitlabFetchIssueTitle({ host, projectPath, iid }, token){
+async function gitlabFetchIssueTitle({ host, projectPath, kind, iid }, token){
   const encodedProject = encodeURIComponent(projectPath);
-  const apiUrl = `${host}/api/v4/projects/${encodedProject}/issues/${encodeURIComponent(iid)}`;
 
-  const res = await fetch(apiUrl, {
-    method: "GET",
-    headers: { "PRIVATE-TOKEN": token }
-  });
+  // Try endpoint based on kind
+  const apiUrlPrimary = `${host}/api/v4/projects/${encodedProject}/${kind}/${encodeURIComponent(iid)}`;
+
+  const headers = {
+    "PRIVATE-TOKEN": token,
+    // Improves compatibility on some instances:
+    "Authorization": `Bearer ${token}`
+  };
+
+  let res = await fetch(apiUrlPrimary, { method: "GET", headers });
+
+  // Fallback: if work_items endpoint isn't supported, try issues
+  if(!res.ok && kind === "work_items"){
+    const apiUrlFallback = `${host}/api/v4/projects/${encodedProject}/issues/${encodeURIComponent(iid)}`;
+    res = await fetch(apiUrlFallback, { method: "GET", headers });
+  }
 
   if(!res.ok){
     const t = await res.text().catch(() => "");
     throw new Error(`GitLab API ${res.status}: ${t || res.statusText}`);
   }
+
   const data = await res.json();
-  return data.title || "(No title)";
+  return data.title || data.name || "(No title)";
 }
 
 // ---------------------------
@@ -614,3 +632,4 @@ function doResetPairing(){
     openAuth("unlock");
   }
 })();
+
