@@ -128,11 +128,40 @@ input::placeholder{color:rgba(255,255,255,.35)}
 .order{font-variant-numeric:tabular-nums;color:var(--muted2);text-align:center;padding:6px 0}
 
 .issue{display:flex;flex-direction:column;gap:4px;min-width:0}
-.issue .top{display:flex;gap:10px;align-items:center;min-width:0}
-.issue .name{font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+
+/* Best UI: 2-line clamp for title, badge stays visible */
+.issue .top{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  min-width:0;
+  justify-content:space-between;
+}
+.issue .name{
+  font-weight:650;
+  min-width:0;
+
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+
+  overflow:hidden;
+  word-break:break-word;
+  line-height:1.25;
+}
+
 .issue .meta{color:var(--muted2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-.badge{padding:4px 8px;border-radius:999px;border:1px solid var(--stroke);background:rgba(255,255,255,.04);color:var(--muted);font-size:12px;white-space:nowrap}
+.badge{
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid var(--stroke);
+  background:rgba(255,255,255,.04);
+  color:var(--muted);
+  font-size:12px;
+  white-space:nowrap;
+  flex:0 0 auto; /* prevents squeezing */
+}
 .badge.ok{border-color:rgba(74,222,128,.35)}
 .badge.err{border-color:rgba(251,113,133,.40);color:rgba(255,255,255,.80)}
 a{color:var(--accent);text-decoration:none}
