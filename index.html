@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Backlog Prioritizer</title>
   <link rel="stylesheet" href="styles.css" />
+  <!-- Cache-bust app.js during development; increment when needed -->
+  <script defer src="app.js?v=20251217-1"></script>
 </head>
 <body>
   <div class="wrap">
@@ -12,7 +14,7 @@
       <div class="title">
         <h1>Backlog Prioritizer</h1>
         <p class="subtitle">
-          Add GitLab issue URLs, score using RICE (1–3 scale), and auto-sort or manually order.
+          Add GitLab issue/work item URLs, score using RICE (1–3 scale), and auto-sort or manually order.
           Pairing is local to this browser profile on this PC.
         </p>
       </div>
@@ -25,8 +27,14 @@
     <section class="card">
       <div class="toolbar">
         <div class="field">
-          <label for="issueUrl">GitLab issue URL</label>
-          <input id="issueUrl" type="text" placeholder="https://issues.markify.com/root/products/-/issues/1579" />
+          <label for="issueUrl">GitLab URL</label>
+          <input
+            id="issueUrl"
+            type="text"
+            placeholder="https://issues.markify.com/root/products/-/(issues|work_items)/1579"
+            autocomplete="off"
+            inputmode="url"
+          />
         </div>
 
         <button class="btn" id="addBtn" type="button">+ Add URL</button>
@@ -36,13 +44,12 @@
             <input id="autoSort" type="checkbox" />
             <span>Auto-sort by RICE</span>
           </div>
-          <button class="btn secondary" id="refreshBtn" type="button">Refresh titles</button>
           <button class="btn danger" id="clearBtn" type="button">Clear list</button>
         </div>
       </div>
 
+      <!-- Status pills only (no left status text) -->
       <div class="statusbar">
-        <div id="statusLeft">Locked. Pair/unlock to use.</div>
         <div class="right">
           <div class="pill" id="pairPill">Unpaired</div>
           <div class="pill" id="countPill">0 items</div>
@@ -66,9 +73,7 @@
       <footer class="footer">
         <div class="hint">
           RICE = (Reach × Impact × Confidence) ÷ Effort. Values are 1–3.
-        </div>
-        <div class="hint">
-          If title fetching fails on GitHub Pages, it is typically a CORS restriction on your GitLab instance.
+          Use the trash icon to remove items.
         </div>
       </footer>
     </section>
@@ -102,9 +107,10 @@
 
           <div class="field">
             <label for="unlockPass">Pairing passphrase</label>
-            <input id="unlockPass" type="password" placeholder="Your local pairing passphrase" />
+            <input id="unlockPass" type="password" placeholder="Your local pairing passphrase" autocomplete="current-password" />
           </div>
 
+          <!-- KeepUnlocked retained for compatibility, but you can hide in CSS if unused -->
           <div class="rowInline">
             <label class="checkbox">
               <input id="keepUnlocked" type="checkbox" />
@@ -123,17 +129,17 @@
         <div class="pane hidden" id="panePair">
           <div class="field">
             <label for="pairDeviceLabel">Device label (PC-specific identifier)</label>
-            <input id="pairDeviceLabel" type="text" placeholder="e.g., MAINAK-LAPTOP / MAINAK-DESKTOP" />
+            <input id="pairDeviceLabel" type="text" placeholder="e.g., MAINAK-WORK-PC" autocomplete="off" />
           </div>
 
           <div class="field">
             <label for="pairToken">GitLab PAT</label>
-            <input id="pairToken" type="password" placeholder="Paste token from Bitwarden" />
+            <input id="pairToken" type="password" placeholder="Paste token from Bitwarden" autocomplete="off" />
           </div>
 
           <div class="field">
             <label for="pairPass">Pairing passphrase</label>
-            <input id="pairPass" type="password" placeholder="Choose a strong passphrase; store in Bitwarden" />
+            <input id="pairPass" type="password" placeholder="Choose a strong passphrase; store in Bitwarden" autocomplete="new-password" />
           </div>
 
           <div class="modalActions">
@@ -145,7 +151,5 @@
       </div>
     </div>
   </div>
-
-  <script src="app.js"></script>
 </body>
 </html>
