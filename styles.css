@@ -111,7 +111,7 @@ input::placeholder{color:rgba(255,255,255,.35)}
 
 .grid{
   display:grid;
-  grid-template-columns:46px 1fr 110px 110px 120px 110px 110px 44px;
+  grid-template-columns:46px 1fr 110px 110px 120px 110px 110px 118px; /* wider actions column */
   gap:10px;
   padding:12px 14px;
   align-items:center;
@@ -189,7 +189,12 @@ select{
 .rice{text-align:right;font-variant-numeric:tabular-nums;font-weight:750}
 .rice small{display:block;color:var(--muted2);font-weight:500;margin-top:2px}
 
-.actions{display:flex;gap:6px;justify-content:flex-end}
+.actions{
+  display:flex;
+  gap:8px;
+  justify-content:flex-end;
+  align-items:center;
+}
 .iconbtn{
   width:34px;height:34px;border-radius:12px;border:1px solid var(--stroke);
   background:rgba(255,255,255,.05);color:var(--text);
@@ -221,10 +226,10 @@ select{
 @media (max-width:980px){
   .toolbar{grid-template-columns:1fr auto}
   .toggles{justify-content:flex-start}
-  .grid{grid-template-columns:32px 1fr 90px 90px 90px 90px 95px 44px}
+  .grid{grid-template-columns:32px 1fr 90px 90px 90px 90px 95px 118px}
 }
 @media (max-width:720px){
-  .grid{grid-template-columns:28px 1fr 76px 76px 76px 76px 90px 44px;gap:8px}
+  .grid{grid-template-columns:28px 1fr 76px 76px 76px 76px 90px 118px;gap:8px}
   .issue .meta{display:none}
 }
 
@@ -284,3 +289,4 @@ select{
 .rowInline{margin-top:8px}
 .checkbox{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:12px}
 .checkbox input{accent-color:var(--accent)}
+
