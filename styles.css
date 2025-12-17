@@ -97,7 +97,10 @@ input::placeholder{color:rgba(255,255,255,.35)}
 
 .statusbar{
   padding:10px 14px;
-  display:flex;justify-content:space-between;gap:12px;align-items:center;
+  display:flex;
+  justify-content:flex-end; /* pills only */
+  gap:12px;
+  align-items:center;
   border-bottom:1px solid var(--stroke);
   background:rgba(0,0,0,.12);
   color:var(--muted);
@@ -129,7 +132,7 @@ input::placeholder{color:rgba(255,255,255,.35)}
 
 .issue{display:flex;flex-direction:column;gap:4px;min-width:0}
 
-/* Best UI: 2-line clamp for title, badge stays visible */
+/* Best UI: 2-line clamp for title */
 .issue .top{
   display:flex;
   gap:10px;
@@ -160,10 +163,15 @@ input::placeholder{color:rgba(255,255,255,.35)}
   color:var(--muted);
   font-size:12px;
   white-space:nowrap;
-  flex:0 0 auto; /* prevents squeezing */
+  flex:0 0 auto;
 }
-.badge.ok{border-color:rgba(74,222,128,.35)}
-.badge.err{border-color:rgba(251,113,133,.40);color:rgba(255,255,255,.80)}
+
+/* Hide fetch status badges entirely (if still present in DOM) */
+.badge.ok,
+.badge.err{
+  display:none !important;
+}
+
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
 
@@ -193,6 +201,10 @@ select{
 .iconbtn:active{transform:translateY(1px)}
 .iconbtn:disabled{opacity:.35;cursor:not-allowed}
 
+.iconbtn.trash{
+  background: linear-gradient(180deg, rgba(251,113,133,.18), rgba(251,113,133,.08));
+}
+
 .footer{
   padding:14px;
   color:var(--muted2);
@@ -216,28 +228,37 @@ select{
   .issue .meta{display:none}
 }
 
-/* Modal */
+/* Modal (more opaque + readable) */
 .modalBackdrop{
-  position:fixed;inset:0;
-  background:rgba(0,0,0,.55);
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.70);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display:none;
   align-items:center;
   justify-content:center;
   padding:18px;
 }
 .modalBackdrop.open{display:flex}
+
 .modal{
   width:min(720px, 100%);
   border-radius:var(--r2);
-  border:1px solid var(--stroke);
-  background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
-  box-shadow:var(--shadow);
+  border:1px solid rgba(255,255,255,.14);
+  background: linear-gradient(180deg, #141b2a 0%, #0f1524 100%);
+  box-shadow: 0 22px 60px rgba(0,0,0,.65);
   overflow:hidden;
 }
+
 .modalHeader{
-  display:flex;justify-content:space-between;align-items:flex-start;
-  gap:12px;padding:14px;border-bottom:1px solid var(--stroke);
-  background:rgba(0,0,0,.12);
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  padding:14px;
+  border-bottom:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
 }
 .modalHeader h2{margin:0;font-size:16px}
 .modalSub{margin:6px 0 0;color:var(--muted);font-size:12px;line-height:1.35}
@@ -245,13 +266,17 @@ select{
 
 .tabs{display:flex;gap:8px;margin-bottom:12px}
 .tab{
-  padding:9px 10px;border-radius:12px;border:1px solid var(--stroke);
-  background:rgba(255,255,255,.05);color:var(--muted);
-  cursor:pointer;font-weight:650;
+  padding:9px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.06);
+  color:var(--muted);
+  cursor:pointer;
+  font-weight:650;
 }
 .tab.active{
   color:var(--text);
-  background:linear-gradient(180deg, rgba(96,165,250,.25), rgba(96,165,250,.12));
+  background:linear-gradient(180deg, rgba(96,165,250,.30), rgba(96,165,250,.14));
 }
 .pane.hidden{display:none}
 .modalActions{display:flex;justify-content:flex-end;margin-top:12px}
@@ -259,7 +284,3 @@ select{
 .rowInline{margin-top:8px}
 .checkbox{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:12px}
 .checkbox input{accent-color:var(--accent)}
-.iconbtn.trash{
-  background: linear-gradient(180deg, rgba(251,113,133,.18), rgba(251,113,133,.08));
-}
-
