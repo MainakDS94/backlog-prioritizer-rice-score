@@ -259,3 +259,7 @@ select{
 .rowInline{margin-top:8px}
 .checkbox{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:12px}
 .checkbox input{accent-color:var(--accent)}
+.iconbtn.trash{
+  background: linear-gradient(180deg, rgba(251,113,133,.18), rgba(251,113,133,.08));
+}
+
