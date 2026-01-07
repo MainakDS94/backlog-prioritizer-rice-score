@@ -116,6 +116,11 @@ input::placeholder{color:rgba(255,255,255,.35)}
   padding:12px 14px;
   align-items:center;
 }
+
+/* FIX: let content (like multi-line titles) determine row height */
+.row.grid{align-items:start;}
+.head.grid{align-items:center;}
+
 .head{
   color:var(--muted);
   font-size:12px;
@@ -162,14 +167,29 @@ input::placeholder{color:rgba(255,255,255,.35)}
   min-width:0;
   justify-content:space-between;
 }
-.issue .name{
+
+/* FIX: enforce multi-line wrapping (and clamp if desired) */
+.issue .name,
+.issue .name a{
   font-weight:650;
   min-width:0;
-  overflow:visible;      /* no clipping */
-  word-break:break-word; /* wrap long words */
-  white-space:normal;    /* allow wrapping */
   line-height:1.25;
+
+  /* allow wrapping */
+  white-space:normal;
+  word-break:break-word;
+  overflow-wrap:anywhere;
+
+  /* 2-line clamp with ellipsis (remove these 4 lines if you want unlimited lines) */
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  overflow:hidden;
 }
+
+/* If .name is an <a>, keep it looking like text */
+.issue .name a{color:inherit;text-decoration:none}
+.issue .name a:hover{text-decoration:underline}
 
 .issue .meta{color:var(--muted2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
@@ -307,4 +327,3 @@ select{
 .rowInline{margin-top:8px}
 .checkbox{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:12px}
 .checkbox input{accent-color:var(--accent)}
-
