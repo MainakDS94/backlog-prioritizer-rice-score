@@ -165,13 +165,9 @@ input::placeholder{color:rgba(255,255,255,.35)}
 .issue .name{
   font-weight:650;
   min-width:0;
-
-  display:-webkit-box;
-  -webkit-box-orient:vertical;
-  -webkit-line-clamp:2;
-
-  overflow:hidden;
-  word-break:break-word;
+  overflow:visible;      /* no clipping */
+  word-break:break-word; /* wrap long words */
+  white-space:normal;    /* allow wrapping */
   line-height:1.25;
 }
 
@@ -311,3 +307,4 @@ select{
 .rowInline{margin-top:8px}
 .checkbox{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:12px}
 .checkbox input{accent-color:var(--accent)}
+
