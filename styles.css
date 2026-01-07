@@ -117,7 +117,7 @@ input::placeholder{color:rgba(255,255,255,.35)}
   align-items:center;
 }
 
-/* FIX: let content (like multi-line titles) determine row height */
+/* IMPORTANT: let rows expand vertically for multi-line titles */
 .row.grid{align-items:start;}
 .head.grid{align-items:center;}
 
@@ -159,7 +159,6 @@ input::placeholder{color:rgba(255,255,255,.35)}
 
 .issue{display:flex;flex-direction:column;gap:4px;min-width:0}
 
-/* Best UI: 2-line clamp for title */
 .issue .top{
   display:flex;
   gap:10px;
@@ -168,29 +167,45 @@ input::placeholder{color:rgba(255,255,255,.35)}
   justify-content:space-between;
 }
 
-/* FIX: enforce multi-line wrapping (and clamp if desired) */
+/* =========================================================
+   FIX: SHOW FULL ISSUE TITLES (NO "...")
+   This forcibly removes any ellipsis/clamp applied elsewhere.
+   ========================================================= */
 .issue .name,
-.issue .name a{
-  font-weight:650;
-  min-width:0;
-  line-height:1.25;
+.issue .name a,
+.issue .name *{
+  /* allow wrapping to multiple lines */
+  white-space:normal !important;
+  word-break:break-word !important;
+  overflow-wrap:anywhere !important;
 
-  /* allow wrapping */
-  white-space:normal;
-  word-break:break-word;
-  overflow-wrap:anywhere;
+  /* remove ellipsis behavior */
+  text-overflow:clip !important;
+  overflow:visible !important;
 
-  /* 2-line clamp with ellipsis (remove these 4 lines if you want unlimited lines) */
-  display:-webkit-box;
-  -webkit-box-orient:vertical;
-  -webkit-line-clamp:2;
-  overflow:hidden;
+  /* remove any line-clamp that could create "..." */
+  -webkit-line-clamp:unset !important;
+  -webkit-box-orient:unset !important;
+
+  /* ensure it's not stuck in a webkit line-clamp layout */
+  display:inline !important;
 }
 
-/* If .name is an <a>, keep it looking like text */
-.issue .name a{color:inherit;text-decoration:none}
+/* keep title weight/spacing on the actual title node */
+.issue .name{
+  font-weight:650;
+  line-height:1.25;
+  display:block !important;   /* title should take its own line */
+}
+
+/* If the title is a link, keep it readable */
+.issue .name a{
+  color:inherit;
+  text-decoration:none;
+}
 .issue .name a:hover{text-decoration:underline}
 
+/* meta can stay ellipsized */
 .issue .meta{color:var(--muted2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .badge{
