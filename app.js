@@ -78,6 +78,7 @@ function loadItems(){
       issueState: "unknown",        // "opened" / "closed" / "unknown"
       timeEstimateHrs: 0,           // number (hours)
       velocitySelected: false,      // include checkbox
+      velocityLoading: false,       // subtle loading state for refetch-on-select
       createdAt: Date.now(),
       ...x
     }));
@@ -121,10 +122,11 @@ function formatProjectSlug(projectPath){
 // Estimate helpers (8h = 1d)
 // ---------------------------
 function estimateTotalHoursSelected(){
+  // NOTE: we count selected items with estimate > 0 and not closed.
   return items
     .filter(it =>
       it.velocitySelected &&
-      it.issueState === "opened" &&
+      String(it.issueState || "unknown").toLowerCase() !== "closed" &&
       Number(it.timeEstimateHrs || 0) > 0
     )
     .reduce((sum, it) => sum + Number(it.timeEstimateHrs || 0), 0);
@@ -265,6 +267,35 @@ async function gitlabFetchIssueTitle({ host, projectPath, kind, iid }, token){
   return { title, state, timeEstimateHrs };
 }
 
+// NEW: refetch meta when checkbox is selected
+async function refetchIssueMeta(it){
+  const parsed = {
+    host: it.host,
+    projectPath: it.projectPath,
+    kind: it.kind || "issues",
+    iid: it.iid
+  };
+
+  it.velocityLoading = true;
+  it.fetchStatus = "pending";
+  saveItems();
+  render();
+
+  try{
+    const { title, state, timeEstimateHrs } = await gitlabFetchIssueTitle(parsed, sessionToken);
+    it.title = title;
+    it.issueState = state;
+    it.timeEstimateHrs = Number(timeEstimateHrs || 0);
+    it.fetchStatus = "ok";
+  } catch(_e){
+    // Keep whatever title we already have; allow re-try later
+    it.fetchStatus = "err";
+  } finally {
+    it.velocityLoading = false;
+    saveItems();
+  }
+}
+
 // ---------------------------
 // Render
 // ---------------------------
@@ -312,12 +343,23 @@ function render(){
   items.forEach((it, idx) => {
     const canMove = !elAutoSort.checked;
 
-    const selectable = (it.issueState === "opened") && (Number(it.timeEstimateHrs || 0) > 0);
+    const isClosed = String(it.issueState || "unknown").toLowerCase() === "closed";
+    const hasEstimate = Number(it.timeEstimateHrs || 0) > 0;
+
+    // Selectable means: counts toward totals if checked
+    const selectable = hasEstimate && !isClosed;
+
+    // Disable only when:
+    // - explicitly closed, OR
+    // - estimate confirmed missing (fetch ok + 0), OR
+    // - currently loading (subtle loading state)
+    const estimateConfirmedMissing = (it.fetchStatus === "ok") && !hasEstimate;
+    const checkboxEnabled = !isClosed && !estimateConfirmedMissing && !it.velocityLoading;
+
+    // If it truly can't be included, force unselect
     if(!selectable) it.velocitySelected = false;
 
-    const perItemDays = (Number(it.timeEstimateHrs || 0) > 0)
-      ? formatDaysFromHours(Number(it.timeEstimateHrs || 0))
-      : "";
+    const perItemDays = hasEstimate ? formatDaysFromHours(Number(it.timeEstimateHrs || 0)) : "";
 
     const row = document.createElement("div");
     row.className = "grid row";
@@ -330,14 +372,23 @@ function render(){
           data-include="1"
           data-id="${it.id}"
           ${it.velocitySelected ? "checked" : ""}
-          ${selectable ? "" : "disabled"}
+          ${checkboxEnabled ? "" : "disabled"}
+          aria-busy="${it.velocityLoading ? "true" : "false"}"
           title="${
-            it.issueState !== "opened"
-              ? "Only open issues can be included."
-              : (Number(it.timeEstimateHrs || 0) > 0 ? `Estimate: ${perItemDays}` : "No estimate set in GitLab.")
+            it.velocityLoading
+              ? "Fetching estimate…"
+              : (isClosed
+                  ? "Closed issues cannot be included."
+                  : (hasEstimate
+                      ? `Estimate: ${perItemDays}`
+                      : (it.fetchStatus === "ok"
+                          ? "No estimate set in GitLab."
+                          : "Click to re-fetch estimate from GitLab.")
+                    )
+                )
           }"
         />
-        <span class="includeHint">${escapeHtml(perItemDays)}</span>
+        <span class="includeHint">${escapeHtml(it.velocityLoading ? "…" : perItemDays)}</span>
       </div>
 
       <div class="cell issue">
@@ -371,7 +422,6 @@ function render(){
     elRows.appendChild(row);
   });
 
-  // Persist any forced unselects (e.g., closed/no-estimate items)
   saveItems();
 }
 
@@ -460,6 +510,7 @@ async function addUrl(){
     issueState: "unknown",
     timeEstimateHrs: 0,
     velocitySelected: false,
+    velocityLoading: false,
 
     reach: 1, impact: 1, confidence: 1, effort: 1,
     createdAt: Date.now()
@@ -475,8 +526,8 @@ async function addUrl(){
     it.timeEstimateHrs = Number(timeEstimateHrs || 0);
     it.fetchStatus = "ok";
 
-    // If no estimate or not opened, force unselected
-    if(it.issueState !== "opened" || it.timeEstimateHrs <= 0){
+    // If estimate missing or closed, force unselected
+    if(String(it.issueState || "unknown").toLowerCase() === "closed" || it.timeEstimateHrs <= 0){
       it.velocitySelected = false;
     }
   } catch(_e){
@@ -629,24 +680,44 @@ function doResetPairing(){
   });
 
   elRows.addEventListener("change", (e) => {
-    // Include-in-estimate checkbox
+    // Estimate checkbox (refetch-on-select)
     const include = e.target.closest('input[type="checkbox"][data-include="1"]');
     if(include){
       const id = include.getAttribute("data-id");
       const it = items.find(x => x.id === id);
-      if(it){
-        const selectable = (it.issueState === "opened") && (Number(it.timeEstimateHrs || 0) > 0);
-        it.velocitySelected = selectable ? !!include.checked : false;
-        saveItems();
+      if(!it) return;
 
-        // If Auto-sort is on, ordering may change; re-render. Otherwise, just refresh the mode pill text.
-        if(elAutoSort.checked){
-          render();
-        } else {
-          applyOrdering();
-          saveItems();
-        }
+      // If currently loading, ignore further toggles
+      if(it.velocityLoading){
+        include.checked = !!it.velocitySelected;
+        return;
       }
+
+      // Unchecking is immediate
+      if(!include.checked){
+        it.velocitySelected = false;
+        saveItems();
+        applyOrdering();
+        return;
+      }
+
+      // Checking triggers refetch
+      (async () => {
+        if(!requireUnlocked()){
+          include.checked = false;
+          return;
+        }
+
+        await refetchIssueMeta(it);
+
+        const isClosed = String(it.issueState || "unknown").toLowerCase() === "closed";
+        const hasEstimate = Number(it.timeEstimateHrs || 0) > 0;
+        it.velocitySelected = hasEstimate && !isClosed;
+
+        saveItems();
+        render();
+      })();
+
       return;
     }
 
