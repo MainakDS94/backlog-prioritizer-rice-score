@@ -79,6 +79,7 @@ function loadItems(){
       timeEstimateHrs: 0,           // number (hours)
       velocitySelected: false,      // include checkbox
       velocityLoading: false,       // subtle loading state for refetch-on-select
+      estimateFetched: false,       // IMPORTANT: only after we actually fetch meta at least once
       createdAt: Date.now(),
       ...x
     }));
@@ -122,7 +123,6 @@ function formatProjectSlug(projectPath){
 // Estimate helpers (8h = 1d)
 // ---------------------------
 function estimateTotalHoursSelected(){
-  // NOTE: we count selected items with estimate > 0 and not closed.
   return items
     .filter(it =>
       it.velocitySelected &&
@@ -235,7 +235,6 @@ function parseGitLabIssueUrl(urlStr){
 async function gitlabFetchIssueTitle({ host, projectPath, kind, iid }, token){
   const encodedProject = encodeURIComponent(projectPath);
 
-  // Try endpoint based on kind
   const apiUrlPrimary = `${host}/api/v4/projects/${encodedProject}/${kind}/${encodeURIComponent(iid)}`;
 
   const headers = {
@@ -245,14 +244,12 @@ async function gitlabFetchIssueTitle({ host, projectPath, kind, iid }, token){
 
   let res = await fetch(apiUrlPrimary, { method: "GET", headers });
 
-  // Fallback: if work_items endpoint isn't supported, try issues
   if(!res.ok && kind === "work_items"){
     const apiUrlFallback = `${host}/api/v4/projects/${encodedProject}/issues/${encodeURIComponent(iid)}`;
     res = await fetch(apiUrlFallback, { method: "GET", headers });
   }
 
   if(!res.ok){
-    // silent in UI; keep for debugging in console
     const t = await res.text().catch(() => "");
     throw new Error(`GitLab API ${res.status}: ${t || res.statusText}`);
   }
@@ -267,7 +264,7 @@ async function gitlabFetchIssueTitle({ host, projectPath, kind, iid }, token){
   return { title, state, timeEstimateHrs };
 }
 
-// NEW: refetch meta when checkbox is selected
+// NEW: refetch meta when checkbox is selected (with subtle loading state)
 async function refetchIssueMeta(it){
   const parsed = {
     host: it.host,
@@ -287,9 +284,10 @@ async function refetchIssueMeta(it){
     it.issueState = state;
     it.timeEstimateHrs = Number(timeEstimateHrs || 0);
     it.fetchStatus = "ok";
+    it.estimateFetched = true; // IMPORTANT: now we can trust "0 means no estimate"
   } catch(_e){
-    // Keep whatever title we already have; allow re-try later
     it.fetchStatus = "err";
+    // estimateFetched stays as-is (so user can retry later)
   } finally {
     it.velocityLoading = false;
     saveItems();
@@ -351,12 +349,11 @@ function render(){
 
     // Disable only when:
     // - explicitly closed, OR
-    // - estimate confirmed missing (fetch ok + 0), OR
-    // - currently loading (subtle loading state)
-    const estimateConfirmedMissing = (it.fetchStatus === "ok") && !hasEstimate;
+    // - estimate confirmed missing AFTER we have fetched at least once, OR
+    // - currently loading
+    const estimateConfirmedMissing = it.estimateFetched && (it.fetchStatus === "ok") && !hasEstimate;
     const checkboxEnabled = !isClosed && !estimateConfirmedMissing && !it.velocityLoading;
 
-    // If it truly can't be included, force unselect
     if(!selectable) it.velocitySelected = false;
 
     const perItemDays = hasEstimate ? formatDaysFromHours(Number(it.timeEstimateHrs || 0)) : "";
@@ -381,7 +378,7 @@ function render(){
                   ? "Closed issues cannot be included."
                   : (hasEstimate
                       ? `Estimate: ${perItemDays}`
-                      : (it.fetchStatus === "ok"
+                      : (estimateConfirmedMissing
                           ? "No estimate set in GitLab."
                           : "Click to re-fetch estimate from GitLab.")
                     )
@@ -511,6 +508,7 @@ async function addUrl(){
     timeEstimateHrs: 0,
     velocitySelected: false,
     velocityLoading: false,
+    estimateFetched: false,
 
     reach: 1, impact: 1, confidence: 1, effort: 1,
     createdAt: Date.now()
@@ -525,8 +523,8 @@ async function addUrl(){
     it.issueState = state;
     it.timeEstimateHrs = Number(timeEstimateHrs || 0);
     it.fetchStatus = "ok";
+    it.estimateFetched = true;
 
-    // If estimate missing or closed, force unselected
     if(String(it.issueState || "unknown").toLowerCase() === "closed" || it.timeEstimateHrs <= 0){
       it.velocitySelected = false;
     }
@@ -687,7 +685,6 @@ function doResetPairing(){
       const it = items.find(x => x.id === id);
       if(!it) return;
 
-      // If currently loading, ignore further toggles
       if(it.velocityLoading){
         include.checked = !!it.velocitySelected;
         return;
@@ -701,7 +698,7 @@ function doResetPairing(){
         return;
       }
 
-      // Checking triggers refetch
+      // Checking triggers refetch + subtle loading state
       (async () => {
         if(!requireUnlocked()){
           include.checked = false;
