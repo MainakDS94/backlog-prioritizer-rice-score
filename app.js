@@ -63,15 +63,21 @@ function riceScore(it){
 function saveItems(){
   localStorage.setItem(ITEMS_KEY, JSON.stringify(items));
 }
+
 function loadItems(){
   try{
     const raw = localStorage.getItem(ITEMS_KEY);
     if(!raw) return [];
     const parsed = JSON.parse(raw);
     if(!Array.isArray(parsed)) return [];
+
     return parsed.map(x => ({
       reach: 1, impact: 1, confidence: 1, effort: 1,
       title: "", fetchStatus: "pending",
+      kind: "issues",               // "issues" or "work_items"
+      issueState: "unknown",        // "opened" / "closed" / "unknown"
+      timeEstimateHrs: 0,           // number (hours)
+      velocitySelected: false,      // include checkbox
       createdAt: Date.now(),
       ...x
     }));
@@ -109,6 +115,25 @@ function formatProjectSlug(projectPath){
   const parts = projectPath.split("/");
   if (parts.length <= 2) return projectPath;
   return "…/" + parts.slice(-2).join("/");
+}
+
+// ---------------------------
+// Estimate helpers (8h = 1d)
+// ---------------------------
+function estimateTotalHoursSelected(){
+  return items
+    .filter(it =>
+      it.velocitySelected &&
+      it.issueState === "opened" &&
+      Number(it.timeEstimateHrs || 0) > 0
+    )
+    .reduce((sum, it) => sum + Number(it.timeEstimateHrs || 0), 0);
+}
+
+function formatDaysFromHours(hours){
+  const days = hours / 8;
+  const d = Math.round(days * 10) / 10; // 1 decimal
+  return `${d}d`;
 }
 
 // ---------------------------
@@ -231,20 +256,31 @@ async function gitlabFetchIssueTitle({ host, projectPath, kind, iid }, token){
   }
 
   const data = await res.json();
-  return data.title || data.name || "(No title)";
+
+  const title = data.title || data.name || "(No title)";
+  const state = (data.state || "unknown").toLowerCase(); // "opened" / "closed"
+  const estimateSec = Number(data?.time_stats?.time_estimate || 0);
+  const timeEstimateHrs = estimateSec > 0 ? (estimateSec / 3600) : 0;
+
+  return { title, state, timeEstimateHrs };
 }
 
 // ---------------------------
 // Render
 // ---------------------------
 function applyOrdering(){
-  elModePill.textContent = `Mode: ${elAutoSort.checked ? "Auto" : "Manual"}`;
+  const totalDays = formatDaysFromHours(estimateTotalHoursSelected());
+
   if(elAutoSort.checked){
+    elModePill.textContent = `Mode: Auto • ${totalDays}`;
+
     items.sort((a,b) => {
       const d = riceScore(b) - riceScore(a);
       if(d !== 0) return d;
       return (a.createdAt || 0) - (b.createdAt || 0);
     });
+  } else {
+    elModePill.textContent = `Mode: Manual • ${totalDays}`;
   }
 }
 
@@ -276,10 +312,33 @@ function render(){
   items.forEach((it, idx) => {
     const canMove = !elAutoSort.checked;
 
+    const selectable = (it.issueState === "opened") && (Number(it.timeEstimateHrs || 0) > 0);
+    if(!selectable) it.velocitySelected = false;
+
+    const perItemDays = (Number(it.timeEstimateHrs || 0) > 0)
+      ? formatDaysFromHours(Number(it.timeEstimateHrs || 0))
+      : "";
+
     const row = document.createElement("div");
     row.className = "grid row";
     row.innerHTML = `
       <div class="cell order">${idx+1}</div>
+
+      <div class="cell includeCell">
+        <input
+          type="checkbox"
+          data-include="1"
+          data-id="${it.id}"
+          ${it.velocitySelected ? "checked" : ""}
+          ${selectable ? "" : "disabled"}
+          title="${
+            it.issueState !== "opened"
+              ? "Only open issues can be included."
+              : (Number(it.timeEstimateHrs || 0) > 0 ? `Estimate: ${perItemDays}` : "No estimate set in GitLab.")
+          }"
+        />
+        <span class="includeHint">${escapeHtml(perItemDays)}</span>
+      </div>
 
       <div class="cell issue">
         <div class="top">
@@ -301,7 +360,6 @@ function render(){
 
       <div class="cell rice">
         ${riceScore(it).toFixed(2)}
-        
       </div>
 
       <div class="cell actions">
@@ -312,6 +370,9 @@ function render(){
     `;
     elRows.appendChild(row);
   });
+
+  // Persist any forced unselects (e.g., closed/no-estimate items)
+  saveItems();
 }
 
 // ---------------------------
@@ -391,9 +452,15 @@ async function addUrl(){
     url,
     host: parsed.host,
     projectPath: parsed.projectPath,
+    kind: parsed.kind,
     iid: parsed.iid,
     title: "Fetching…",
     fetchStatus: "pending",
+
+    issueState: "unknown",
+    timeEstimateHrs: 0,
+    velocitySelected: false,
+
     reach: 1, impact: 1, confidence: 1, effort: 1,
     createdAt: Date.now()
   };
@@ -402,11 +469,21 @@ async function addUrl(){
   render();
 
   try{
-    const title = await gitlabFetchIssueTitle(parsed, sessionToken);
+    const { title, state, timeEstimateHrs } = await gitlabFetchIssueTitle(parsed, sessionToken);
     it.title = title;
+    it.issueState = state;
+    it.timeEstimateHrs = Number(timeEstimateHrs || 0);
     it.fetchStatus = "ok";
+
+    // If no estimate or not opened, force unselected
+    if(it.issueState !== "opened" || it.timeEstimateHrs <= 0){
+      it.velocitySelected = false;
+    }
   } catch(_e){
     it.title = "Untitled";
+    it.issueState = "unknown";
+    it.timeEstimateHrs = 0;
+    it.velocitySelected = false;
     it.fetchStatus = "err";
   }
 
@@ -552,6 +629,28 @@ function doResetPairing(){
   });
 
   elRows.addEventListener("change", (e) => {
+    // Include-in-estimate checkbox
+    const include = e.target.closest('input[type="checkbox"][data-include="1"]');
+    if(include){
+      const id = include.getAttribute("data-id");
+      const it = items.find(x => x.id === id);
+      if(it){
+        const selectable = (it.issueState === "opened") && (Number(it.timeEstimateHrs || 0) > 0);
+        it.velocitySelected = selectable ? !!include.checked : false;
+        saveItems();
+
+        // If Auto-sort is on, ordering may change; re-render. Otherwise, just refresh the mode pill text.
+        if(elAutoSort.checked){
+          render();
+        } else {
+          applyOrdering();
+          saveItems();
+        }
+      }
+      return;
+    }
+
+    // RICE selects
     const sel = e.target.closest("select[data-field]");
     if(!sel) return;
     updateField(sel.getAttribute("data-id"), sel.getAttribute("data-field"), sel.value);
@@ -603,7 +702,5 @@ function doResetPairing(){
 // ---------------------------
 function cleanupOnExit(){
   sessionToken = null;
-  
 }
 window.addEventListener("pagehide", cleanupOnExit);
-
