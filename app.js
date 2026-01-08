@@ -394,10 +394,9 @@ function render(){
         </div>
 
         <div class="meta">
-          <span class="badge">${escapeHtml(it.host.replace(/^https?:\/\//,""))}</span>
-          <span class="badge">${escapeHtml(formatProjectSlug(it.projectPath))}</span>
-          <span class="badge">#${escapeHtml(it.iid)}</span>
-          <span class="badge"><a href="${escapeAttr(it.url)}" target="_blank" rel="noreferrer">Open</a></span>
+          <a class="gitlabLink" href="${escapeAttr(it.url)}" target="_blank" rel="noopener noreferrer">
+            Link to GitLab
+          </a>
         </div>
       </div>
 
