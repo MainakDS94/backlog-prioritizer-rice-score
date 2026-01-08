@@ -157,7 +157,7 @@ input::placeholder{color:rgba(255,255,255,.35)}
   white-space:nowrap;
 }
 
-.issue{display:flex;flex-direction:column;gap:4px;min-width:0}
+.issue{display:flex;flex-direction:column;gap:6px;min-width:0}
 
 .issue .top{
   display:flex;
@@ -169,45 +169,63 @@ input::placeholder{color:rgba(255,255,255,.35)}
 
 /* =========================================================
    FIX: SHOW FULL ISSUE TITLES (NO "...")
-   This forcibly removes any ellipsis/clamp applied elsewhere.
    ========================================================= */
 .issue .name,
 .issue .name a,
 .issue .name *{
-  /* allow wrapping to multiple lines */
   white-space:normal !important;
   word-break:break-word !important;
   overflow-wrap:anywhere !important;
 
-  /* remove ellipsis behavior */
   text-overflow:clip !important;
   overflow:visible !important;
 
-  /* remove any line-clamp that could create "..." */
   -webkit-line-clamp:unset !important;
   -webkit-box-orient:unset !important;
 
-  /* ensure it's not stuck in a webkit line-clamp layout */
   display:inline !important;
 }
 
-/* keep title weight/spacing on the actual title node */
 .issue .name{
   font-weight:650;
   line-height:1.25;
-  display:block !important;   /* title should take its own line */
+  display:block !important;
 }
 
-/* If the title is a link, keep it readable */
-.issue .name a{
-  color:inherit;
+/* Meta area now contains ONE link; do not ellipsize it */
+.issue .meta{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+  overflow:visible;
+  white-space:normal;
+}
+
+/* New: single "Link to GitLab" pill */
+.gitlabLink{
+  display:inline-block;
+  padding:4px 10px;
+  border-radius:999px;
+  border:1px solid var(--stroke);
+  background:rgba(255,255,255,.06);
+  color:var(--muted);
+  font-size:12px;
+  font-weight:650;
+  text-decoration:none;
+  white-space:nowrap;
+  transition:filter .08s ease, transform .08s ease;
+  user-select:none;
+}
+.gitlabLink:hover{
+  filter:brightness(1.08);
   text-decoration:none;
 }
-.issue .name a:hover{text-decoration:underline}
+.gitlabLink:active{
+  transform:translateY(1px);
+}
 
-/* meta can stay ellipsized */
-.issue .meta{color:var(--muted2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
+/* Kept for safety (in case badges are used elsewhere) */
 .badge{
   padding:4px 8px;
   border-radius:999px;
@@ -281,6 +299,7 @@ select{
   .toggles{justify-content:flex-start}
   .grid{grid-template-columns:32px 96px 1fr 90px 90px 90px 90px 95px 118px}
 }
+
 @media (max-width:720px){
   .grid{grid-template-columns:28px 88px 1fr 76px 76px 76px 76px 90px 118px;gap:8px}
   .issue .meta{display:none}
