@@ -3,15 +3,19 @@
 // ---------------------------
 const ITEMS_KEY = "bp_items_v1";
 const PAIR_KEY  = "bp_pair_v1"; // { deviceLabel, saltB64, ivB64, ctB64 }  ct = encrypted PAT
+const HARDCODED_PROJECT_URL = "https://issues.markify.com/root/products"; // Default project for label fetching
 
 let items = loadItems();
 let sessionToken = null; // unlocked token kept only in memory (per tab)
+let labelsCache = {}; // Cache labels per project: { "host/projectPath": ["label1", "label2", ...] }
 
 // ---------------------------
 // DOM
 // ---------------------------
 const elUrl = document.getElementById("issueUrl");
 const elLabelInput = document.getElementById("labelInput");
+const elLabelSuggestions = document.getElementById("labelSuggestions");
+const elFetchLabelsBtn = document.getElementById("fetchLabelsBtn");
 const elAdd = document.getElementById("addBtn");
 const elRows = document.getElementById("rows");
 const elAutoSort = document.getElementById("autoSort");
@@ -233,6 +237,20 @@ function parseGitLabIssueUrl(urlStr){
   return { host, projectPath, kind, iid };
 }
 
+function parseGitLabProjectUrl(urlStr){
+  let u;
+  try { u = new URL(urlStr); }
+  catch { throw new Error("Invalid URL."); }
+
+  const host = u.origin;
+  const path = u.pathname.replace(/\/+$/, "").replace(/^\//, "");
+
+  // Accept project URLs like: https://issues.markify.com/root/products
+  if(!path) throw new Error("Invalid project URL.");
+
+  return { host, projectPath: path };
+}
+
 async function gitlabFetchIssueTitle({ host, projectPath, kind, iid }, token){
   const encodedProject = encodeURIComponent(projectPath);
 
@@ -310,6 +328,26 @@ async function gitlabApplyLabel({ host, projectPath, kind, iid }, label, token){
   return { success: true, message: "Label applied successfully" };
 }
 
+async function gitlabFetchProjectLabels({ host, projectPath }, token){
+  const encodedProject = encodeURIComponent(projectPath);
+  const apiUrl = `${host}/api/v4/projects/${encodedProject}/labels?per_page=100`;
+
+  const headers = {
+    "PRIVATE-TOKEN": token,
+    "Authorization": `Bearer ${token}`
+  };
+
+  const res = await fetch(apiUrl, { method: "GET", headers });
+
+  if(!res.ok){
+    const t = await res.text().catch(() => "");
+    throw new Error(`GitLab API ${res.status}: ${t || res.statusText}`);
+  }
+
+  const data = await res.json();
+  return data.map(label => label.name).sort();
+}
+
 // NEW: refetch meta when checkbox is selected (with subtle loading state)
 async function refetchIssueMeta(it){
   const parsed = {
@@ -337,6 +375,48 @@ async function refetchIssueMeta(it){
   } finally {
     it.velocityLoading = false;
     saveItems();
+  }
+}
+
+async function updateLabelSuggestions(){
+  if(!requireUnlocked()) return;
+  
+  // Always fetch from the hardcoded project
+  const parsed = parseGitLabProjectUrl(HARDCODED_PROJECT_URL);
+  const projectKey = `${parsed.host}|||${parsed.projectPath}`;
+  
+  // Show loading state
+  const originalText = elFetchLabelsBtn.textContent;
+  elFetchLabelsBtn.textContent = "Loading...";
+  elFetchLabelsBtn.disabled = true;
+  
+  try{
+    let labels = [];
+    
+    // Check cache first
+    if(labelsCache[projectKey]){
+      labels = labelsCache[projectKey];
+    } else {
+      // Fetch from API
+      labels = await gitlabFetchProjectLabels(parsed, sessionToken);
+      labelsCache[projectKey] = labels;
+    }
+    
+    // Update datalist
+    elLabelSuggestions.innerHTML = "";
+    labels.sort().forEach(label => {
+      const option = document.createElement("option");
+      option.value = label;
+      elLabelSuggestions.appendChild(option);
+    });
+    
+    alert(`✓ Loaded ${labels.length} labels from project`);
+    
+  } catch(e){
+    alert(`✗ Failed to fetch labels: ${e.message}`);
+  } finally {
+    elFetchLabelsBtn.textContent = originalText;
+    elFetchLabelsBtn.disabled = false;
   }
 }
 
@@ -729,10 +809,12 @@ function doResetPairing(){
   must(unlockBtn, "unlockBtn");
   must(unlockNote, "unlockNote");
   must(authBackdrop, "authBackdrop");
+  must(elFetchLabelsBtn, "elFetchLabelsBtn");
 
   // Main actions
   elAdd.addEventListener("click", addUrl);
   elUrl.addEventListener("keydown", (e) => { if(e.key === "Enter") addUrl(); });
+  elFetchLabelsBtn.addEventListener("click", updateLabelSuggestions);
 
   elRows.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-action]");
