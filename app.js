@@ -11,6 +11,7 @@ let sessionToken = null; // unlocked token kept only in memory (per tab)
 // DOM
 // ---------------------------
 const elUrl = document.getElementById("issueUrl");
+const elLabelInput = document.getElementById("labelInput");
 const elAdd = document.getElementById("addBtn");
 const elRows = document.getElementById("rows");
 const elAutoSort = document.getElementById("autoSort");
@@ -108,7 +109,7 @@ function escapeHtml(s){
     .replaceAll("&","&amp;")
     .replaceAll("<","&lt;")
     .replaceAll(">","&gt;")
-    .replaceAll('"',"quot;")
+    .replaceAll('"',"&quot;")
     .replaceAll("'","&#039;");
 }
 function escapeAttr(s){ return escapeHtml(s).replaceAll("`","&#096;"); }
@@ -264,6 +265,51 @@ async function gitlabFetchIssueTitle({ host, projectPath, kind, iid }, token){
   return { title, state, timeEstimateHrs };
 }
 
+async function gitlabApplyLabel({ host, projectPath, kind, iid }, label, token){
+  const encodedProject = encodeURIComponent(projectPath);
+  
+  // For work_items, we need to use issues endpoint for labels
+  const endpoint = kind === "work_items" ? "issues" : kind;
+  const apiUrl = `${host}/api/v4/projects/${encodedProject}/${endpoint}/${encodeURIComponent(iid)}`;
+
+  const headers = {
+    "PRIVATE-TOKEN": token,
+    "Authorization": `Bearer ${token}`,
+    "Content-Type": "application/json"
+  };
+
+  // First, get current labels
+  const getRes = await fetch(apiUrl, { method: "GET", headers });
+  if(!getRes.ok){
+    const t = await getRes.text().catch(() => "");
+    throw new Error(`GitLab API ${getRes.status}: ${t || getRes.statusText}`);
+  }
+  
+  const data = await getRes.json();
+  const currentLabels = data.labels || [];
+  
+  // Add new label if not already present
+  if(currentLabels.includes(label)){
+    return { success: true, message: "Label already exists" };
+  }
+  
+  const newLabels = [...currentLabels, label];
+  
+  // Update with new labels
+  const updateRes = await fetch(apiUrl, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ labels: newLabels.join(",") })
+  });
+
+  if(!updateRes.ok){
+    const t = await updateRes.text().catch(() => "");
+    throw new Error(`GitLab API ${updateRes.status}: ${t || updateRes.statusText}`);
+  }
+
+  return { success: true, message: "Label applied successfully" };
+}
+
 // NEW: refetch meta when checkbox is selected (with subtle loading state)
 async function refetchIssueMeta(it){
   const parsed = {
@@ -410,6 +456,7 @@ function render(){
       </div>
 
       <div class="cell actions">
+        <button class="iconbtn" title="Apply label" data-action="label" data-id="${it.id}">🏷️</button>
         <button class="iconbtn trash" title="Remove" data-action="delete" data-id="${it.id}">🗑</button>
         <button class="iconbtn" title="Move up" data-action="up" data-id="${it.id}" ${(!canMove || idx===0) ? "disabled" : ""}>↑</button>
         <button class="iconbtn" title="Move down" data-action="down" data-id="${it.id}" ${(!canMove || idx===items.length-1) ? "disabled" : ""}>↓</button>
@@ -556,6 +603,33 @@ function removeItem(id){
   render();
 }
 
+async function applyLabel(id){
+  if(!requireUnlocked()) return;
+  
+  const label = elLabelInput.value.trim();
+  if(!label){
+    alert("Please enter a label name first");
+    return;
+  }
+  
+  const it = items.find(x => x.id === id);
+  if(!it) return;
+  
+  const parsed = {
+    host: it.host,
+    projectPath: it.projectPath,
+    kind: it.kind || "issues",
+    iid: it.iid
+  };
+  
+  try{
+    const result = await gitlabApplyLabel(parsed, label, sessionToken);
+    alert(`✓ ${result.message}`);
+  } catch(e){
+    alert(`✗ Failed to apply label: ${e.message}`);
+  }
+}
+
 function updateField(id, field, value){
   const it = items.find(x => x.id === id);
   if(!it) return;
@@ -669,6 +743,11 @@ function doResetPairing(){
 
     if(action === "delete"){
       removeItem(id);
+      return;
+    }
+
+    if(action === "label"){
+      applyLabel(id);
       return;
     }
 
