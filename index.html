@@ -28,35 +28,46 @@
 
     <section class="card">
       <div class="toolbar">
-        <div class="field">
-          <label for="issueUrl">GitLab URL</label>
-          <input
-            id="issueUrl"
-            type="text"
-            placeholder="https://issues.markify.com/root/products/-/(issues|work_items)/1579"
-            autocomplete="off"
-            inputmode="url"
-          />
-        </div>
-
-        <div class="field">
-          <label for="labelInput">Label to apply</label>
-          <input
-            id="labelInput"
-            type="text"
-            placeholder="e.g., priority::high"
-            autocomplete="off"
-          />
-        </div>
-
-        <button class="btn" id="addBtn" type="button">+ Add URL</button>
-
-        <div class="toggles">
-          <div class="toggle">
-            <input id="autoSort" type="checkbox" />
-            <span>Auto-sort by RICE</span>
+        <div class="urlRow">
+          <div class="field">
+            <label for="issueUrl">GitLab URL</label>
+            <input
+              id="issueUrl"
+              type="text"
+              placeholder="https://issues.markify.com/root/products/-/(issues|work_items)/1579"
+              autocomplete="off"
+              inputmode="url"
+            />
           </div>
-          <button class="btn danger" id="clearBtn" type="button">Clear list</button>
+
+          <button class="btn" id="addBtn" type="button">+ Add URL</button>
+        </div>
+
+        <div class="labelRow">
+          <div class="field">
+            <label for="labelInput">Label to apply</label>
+            <div class="labelInputGroup">
+              <input
+                id="labelInput"
+                type="text"
+                placeholder="e.g., priority::high"
+                autocomplete="off"
+                list="labelSuggestions"
+              />
+              <button class="btn secondary compact" id="fetchLabelsBtn" type="button" title="Fetch labels from loaded projects">
+                ↻ Labels
+              </button>
+            </div>
+            <datalist id="labelSuggestions"></datalist>
+          </div>
+
+          <div class="toggles">
+            <div class="toggle">
+              <input id="autoSort" type="checkbox" />
+              <span>Auto-sort by RICE</span>
+            </div>
+            <button class="btn danger" id="clearBtn" type="button">Clear list</button>
+          </div>
         </div>
       </div>
 
